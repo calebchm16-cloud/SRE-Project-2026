@@ -17,7 +17,13 @@ Status: **Running when last verified** (2026-11-18 06:38:26 UTC).
 - Readiness: [http://100.54.133.50/health/ready](http://100.54.133.50/health/ready)
 - Source: [`cd845debb671`](https://github.com/calebchm16-cloud/SRE-Project-2026/commit/cd845debb67154a1f39fb566b19de1bb1a3b26f0)
 
-Grafana, Prometheus and Alertmanager use private Systems Manager tunnels; see [AWS operation](docs/aws.md).
+- Monitoring access and Grafana credentials: [Open access page](http://100.54.133.50:3000/access)
+- Grafana: [Open dashboards](http://100.54.133.50:3000/)
+- Prometheus: [Open query interface](http://100.54.133.50:9090/)
+
+Grafana uses the Viewer username/password listed on the public access page. Prometheus does not require login. No AWS account, SSO or tunnel is needed to view these services.
+
+Alertmanager uses a private Systems Manager tunnel; see [AWS operation](docs/aws.md).
 
 This is an ephemeral, read-only HTTP demonstration. The address can change after stop/start. This timestamped snapshot is not a live uptime check.
 <!-- deployment:end -->
