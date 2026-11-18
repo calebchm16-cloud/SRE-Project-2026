@@ -1,0 +1,101 @@
+name: CI
+on:
+  push:
+    paths-ignore: ['docs/**', 'README.md']
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CAHUITA_CONTEXT: cahuita-ci
+      KUBECTL_BIN: ${{ github.workspace }}/artifacts/tools/kubectl
+      TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/artifacts/provider-cache
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.14'
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: '1.15.5'
+          terraform_wrapper: false
+      - name: Install frozen tools and browser
+        run: |
+          python -m pip install uv==0.13.6 ansible-core==2.21.6
+          uv sync --frozen
+          uv run playwright install --with-deps chromium
+          docker context create cahuita-ci --docker host=unix:///var/run/docker.sock
+          python -c "import sys; sys.path.insert(0,'scripts'); import k8s; k8s.install_kubectl()"
+      - name: Validate and test without AWS or forecast-provider credentials
+        run: |
+          uv lock --check --offline
+          uv run ruff check .
+          mkdir -p artifacts/ci
+          mkdir -p "$TF_PLUGIN_CACHE_DIR"
+          uv run pytest -q --junitxml=artifacts/ci/junit.xml --cov=cahuita_conditions --cov-report=xml:artifacts/ci/coverage.xml
+          python scripts/prometheus.py check
+          python scripts/alertmanager.py check
+          python scripts/grafana.py check
+          python -c "import sys; sys.path.insert(0,'scripts'); import alertmanager_rule_tests as a, grafana_promql_tests as g, grafana; a.run(); g.run(grafana.dashboards(),grafana.interpolate)"
+          terraform -chdir=infrastructure/terraform init -backend=false -input=false
+          terraform -chdir=infrastructure/terraform fmt -check -recursive
+          terraform -chdir=infrastructure/terraform validate
+          terraform -chdir=infrastructure/terraform test
+          terraform -chdir=infrastructure/state init -backend=false -input=false
+          terraform -chdir=infrastructure/state validate
+          terraform -chdir=infrastructure/github init -backend=false -input=false
+          terraform -chdir=infrastructure/github fmt -check -recursive
+          terraform -chdir=infrastructure/github validate
+          terraform -chdir=infrastructure/github test
+          ansible-playbook -i localhost, deployment/ansible/site.yml --syntax-check
+      - name: Keep test reports
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: test-reports
+          path: artifacts/ci/
+          retention-days: 7
+
+  image:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        architecture: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Build and load the tested architecture
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          platforms: linux/${{ matrix.architecture }}
+          load: true
+          tags: cahuita-conditions:ci-${{ github.sha }}
+          labels: org.opencontainers.image.revision=${{ github.sha }}
+      - name: Execute the image and export that same artifact
+        env:
+          ARCHITECTURE: ${{ matrix.architecture }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          python3 scripts/image_smoke.py --image "cahuita-conditions:ci-$SOURCE_SHA" --platform "linux/$ARCHITECTURE"
+          mkdir -p artifacts/image
+          docker save "cahuita-conditions:ci-$SOURCE_SHA" -o artifacts/image/image.tar
+          sha256sum artifacts/image/image.tar > artifacts/image/image.sha256
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: image-${{ matrix.architecture }}
+          path: artifacts/image/
+          retention-days: 2
