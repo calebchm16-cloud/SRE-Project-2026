@@ -10,12 +10,12 @@ without JavaScript; API documentation uses Swagger UI separately.
 
 [![CI](https://github.com/calebchm16-cloud/SRE-Project-2026/actions/workflows/ci.yml/badge.svg)](https://github.com/calebchm16-cloud/SRE-Project-2026/actions/workflows/ci.yml)
 
-Status: **Running when last verified** (2026-11-18 06:14:46 UTC).
+Status: **Running when last verified** (2026-11-18 06:38:26 UTC).
 
 - Application: [http://100.54.133.50/](http://100.54.133.50/)
 - API documentation: [http://100.54.133.50/docs](http://100.54.133.50/docs)
 - Readiness: [http://100.54.133.50/health/ready](http://100.54.133.50/health/ready)
-- Source: [`512804ec12a6`](https://github.com/calebchm16-cloud/SRE-Project-2026/commit/512804ec12a6086fcf3f5eb5055414dbf4ea0714)
+- Source: [`cd845debb671`](https://github.com/calebchm16-cloud/SRE-Project-2026/commit/cd845debb67154a1f39fb566b19de1bb1a3b26f0)
 
 Grafana, Prometheus and Alertmanager use private Systems Manager tunnels; see [AWS operation](docs/aws.md).
 
