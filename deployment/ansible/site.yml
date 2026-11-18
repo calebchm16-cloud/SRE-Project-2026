@@ -1,0 +1,264 @@
+---
+- name: Configure the single-node Cahuita AWS laboratory
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+  vars:
+    k3s_version: v1.35.0+k3s1
+    release_root: /opt/cahuita/release
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  tasks:
+    - name: Require Ubuntu 24.04 and supported architecture
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.distribution == 'Ubuntu'
+          - ansible_facts.distribution_version == '24.04'
+          - ansible_facts.architecture in ['aarch64', 'x86_64']
+
+    - name: Install Docker, Buildx and the local HTTP proxy
+      ansible.builtin.apt:
+        name: [docker.io, docker-buildx, nginx, ca-certificates, curl, socat]
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Enable Docker
+      ansible.builtin.systemd_service:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Create persistent K3s configuration directory
+      ansible.builtin.file:
+        path: /etc/rancher/k3s
+        state: directory
+        mode: '0755'
+
+    - name: Configure K3s to share Docker's image store
+      ansible.builtin.copy:
+        dest: /etc/rancher/k3s/config.yaml
+        mode: '0600'
+        content: |
+          docker: true
+          write-kubeconfig-mode: "0600"
+          disable:
+            - traefik
+            - servicelb
+      notify: Restart K3s
+
+    - name: Check the installed Kubernetes version
+      ansible.builtin.command: /usr/local/bin/k3s --version
+      register: installed_k3s
+      failed_when: false
+      changed_when: false
+
+    - name: Download the installer only when installation is needed
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/k3s-io/k3s/v1.35.0%2Bk3s1/install.sh
+        dest: /opt/install-k3s.sh
+        mode: '0700'
+      when: k3s_version not in installed_k3s.stdout
+
+    - name: Install the pinned Kubernetes version
+      ansible.builtin.command: /bin/sh /opt/install-k3s.sh
+      environment:
+        INSTALL_K3S_VERSION: '{{ k3s_version }}'
+      when: k3s_version not in installed_k3s.stdout
+      changed_when: true
+
+    - name: Enable Kubernetes
+      ansible.builtin.systemd_service:
+        name: k3s
+        enabled: true
+        state: started
+
+    - name: Apply any pending Kubernetes configuration
+      ansible.builtin.meta: flush_handlers
+
+    - name: Install a persistent client kubeconfig generator
+      ansible.builtin.copy:
+        dest: /usr/local/sbin/cahuita-kubeconfig
+        mode: '0700'
+        content: |
+          #!/bin/sh
+          set -eu
+          install -d -m 700 /etc/cahuita
+          cahuita_kube_temp=$(mktemp /etc/cahuita/kubeconfig.XXXXXX)
+          trap 'rm -f "$cahuita_kube_temp"' EXIT
+          install -m 600 /etc/rancher/k3s/k3s.yaml "$cahuita_kube_temp"
+          cahuita_kube_context=$(KUBECONFIG="$cahuita_kube_temp" /usr/local/bin/kubectl config current-context)
+          if [ "$cahuita_kube_context" = default ]; then
+            KUBECONFIG="$cahuita_kube_temp" /usr/local/bin/kubectl config rename-context default cahuita-server >/dev/null
+          fi
+          mv -f "$cahuita_kube_temp" /etc/cahuita/kubeconfig.yaml
+
+    - name: Create the K3s service override directory
+      ansible.builtin.file:
+        path: /etc/systemd/system/k3s.service.d
+        state: directory
+        mode: '0755'
+
+    - name: Refresh the client context after every K3s start
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/k3s.service.d/20-cahuita-client.conf
+        mode: '0644'
+        content: |
+          [Service]
+          ExecStartPost=/usr/local/sbin/cahuita-kubeconfig
+      notify: Restart K3s
+
+    - name: Activate the client context hook
+      ansible.builtin.meta: flush_handlers
+
+    - name: Synchronize the current client kubeconfig
+      ansible.builtin.command: /usr/local/sbin/cahuita-kubeconfig
+      changed_when: false
+
+    - name: Configure explicit contexts for administrative login shells
+      ansible.builtin.copy:
+        dest: /etc/profile.d/cahuita.sh
+        mode: '0644'
+        content: |
+          export CAHUITA_CONTEXT=cahuita-server
+          export KUBECTL_BIN=/usr/local/bin/kubectl
+          export KUBECONFIG=/etc/cahuita/kubeconfig.yaml
+
+    - name: Check the transferred image archive
+      ansible.builtin.stat:
+        path: /opt/cahuita/image.tar
+        checksum_algorithm: sha256
+      register: image_archive
+      when: image_sha256 is defined
+
+    - name: Require the exact transferred build artifact
+      ansible.builtin.assert:
+        that: image_archive.stat.checksum == image_sha256
+      when: image_sha256 is defined
+
+    - name: Load the validated native Docker image
+      ansible.builtin.command: docker load --input /opt/cahuita/image.tar
+      changed_when: true
+      no_log: true
+      when: image_sha256 is defined
+
+    - name: Build a native image for a direct terminal deployment
+      ansible.builtin.command:
+        argv:
+          - docker
+          - buildx
+          - build
+          - --load
+          - --tag
+          - '{{ image_tag }}'
+          - --label
+          - 'org.opencontainers.image.revision={{ source_sha }}'
+          - '{{ release_root }}'
+      when: image_sha256 is not defined
+      changed_when: true
+
+    - name: Execute the locally built image before deployment
+      ansible.builtin.command:
+        argv:
+          - /opt/cahuita-ansible/bin/python
+          - scripts/image_smoke.py
+          - --image
+          - '{{ image_tag }}'
+          - --platform
+          - "linux/{{ 'arm64' if ansible_facts.architecture == 'aarch64' else 'amd64' }}"
+      args:
+        chdir: '{{ release_root }}'
+      when: image_sha256 is not defined
+      changed_when: false
+
+    - name: Deploy and verify the application and monitoring
+      ansible.builtin.command:
+        argv:
+          - /opt/cahuita-ansible/bin/python
+          - scripts/aws_guest.py
+          - --image
+          - '{{ image_tag }}'
+          - --source-sha
+          - '{{ source_sha }}'
+      args:
+        chdir: '{{ release_root }}'
+      register: deployment
+      changed_when: true
+
+    - name: Configure the public forecast endpoint
+      ansible.builtin.copy:
+        dest: /etc/nginx/sites-enabled/default
+        mode: '0644'
+        content: |
+          server {
+            listen 80 default_server;
+            server_name _;
+            location / {
+              proxy_pass http://127.0.0.1:30080;
+              proxy_set_header Host $host;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_connect_timeout 3s;
+              proxy_read_timeout 15s;
+            }
+          }
+      notify: Reload nginx
+
+    - name: Install private localhost access services
+      ansible.builtin.copy:
+        dest: '/etc/systemd/system/cahuita-{{ item.name }}.service'
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Private localhost access to {{ item.name }}
+          After=k3s.service
+          Requires=k3s.service
+          [Service]
+          Environment=KUBECONFIG=/etc/cahuita/kubeconfig.yaml
+          ExecStart=/usr/local/bin/kubectl --context cahuita-server -n monitoring port-forward --address=127.0.0.1 service/{{ item.name }} {{ item.port }}:{{ item.port }}
+          Restart=always
+          RestartSec=3
+          [Install]
+          WantedBy=multi-user.target
+      loop:
+        - {name: grafana, port: 3000}
+        - {name: prometheus, port: 9090}
+        - {name: alertmanager, port: 9093}
+      register: forwarding_units
+
+    - name: Start private monitoring access
+      ansible.builtin.systemd_service:
+        name: 'cahuita-{{ item }}'
+        daemon_reload: true
+        enabled: true
+        state: "{{ 'restarted' if forwarding_units.changed else 'started' }}"
+      loop: [grafana, prometheus, alertmanager]
+
+    - name: Enable nginx
+      ansible.builtin.systemd_service:
+        name: nginx
+        enabled: true
+        state: started
+
+    - name: Activate proxy configuration
+      ansible.builtin.meta: flush_handlers
+
+    - name: Verify the externally routed application
+      ansible.builtin.uri:
+        url: http://127.0.0.1/health/ready
+        status_code: 200
+      register: ready
+      retries: 12
+      delay: 5
+      until: ready.status == 200
+
+  handlers:
+    - name: Restart K3s
+      ansible.builtin.systemd_service:
+        name: k3s
+        daemon_reload: true
+        state: restarted
+    - name: Reload nginx
+      ansible.builtin.systemd_service:
+        name: nginx
+        state: reloaded
