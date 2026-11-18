@@ -5,6 +5,7 @@ import argparse
 import ipaddress
 import json
 import re
+import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -19,6 +20,21 @@ PATHS = (
     "/openapi.json",
     "/metrics",
 )
+
+
+def public_monitoring_available(report):
+    """Publish public monitoring links only when all three endpoints respond."""
+    if report.get("verified") is not True or report.get("status") != "running":
+        return False
+    try:
+        address = str(ipaddress.IPv4Address(report["public_ip"]))
+        for port, path in ((3000, "/access"), (3000, "/api/health"), (9090, "/-/ready")):
+            with urllib.request.urlopen(f"http://{address}:{port}{path}", timeout=5) as response:
+                if response.status != 200:
+                    return False
+    except (OSError, ValueError):
+        return False
+    return True
 
 
 def section(report, repository=None):
@@ -61,8 +77,29 @@ def section(report, repository=None):
             f"- Readiness: [{base}/health/ready]({base}/health/ready)",
             f"- Source: {source}",
             "",
-            "Grafana, Prometheus and Alertmanager use private Systems Manager tunnels; "
-            "see [AWS operation](docs/aws.md).",
+        ]
+        if report.get("public_monitoring_verified") is True:
+            grafana = f"{base}:3000"
+            prometheus = f"{base}:9090"
+            lines += [
+                "- Monitoring access and Grafana credentials: "
+                f"[Open access page]({grafana}/access)",
+                f"- Grafana: [Open dashboards]({grafana}/)",
+                f"- Prometheus: [Open query interface]({prometheus}/)",
+                "",
+                "Grafana uses the Viewer username/password listed on the public access page. "
+                "Prometheus does not require login. No AWS account, SSO or tunnel is needed "
+                "to view these services.",
+                "",
+                "Alertmanager uses a private Systems Manager tunnel; "
+                "see [AWS operation](docs/aws.md).",
+            ]
+        else:
+            lines += [
+                "Grafana, Prometheus and Alertmanager use private Systems Manager tunnels; "
+                "see [AWS operation](docs/aws.md).",
+            ]
+        lines += [
             "",
             "This is an ephemeral, read-only HTTP demonstration. The address can change "
             "after stop/start. This timestamped snapshot is not a live uptime check.",
@@ -94,4 +131,7 @@ if __name__ == "__main__":
     parser.add_argument("--repository")
     parser.add_argument("--readme", type=Path, default=Path("README.md"))
     args = parser.parse_args()
-    update(args.readme, json.loads(args.report.read_text()), args.repository)
+    report = json.loads(args.report.read_text())
+    section(report, args.repository)
+    report["public_monitoring_verified"] = public_monitoring_available(report)
+    update(args.readme, report, args.repository)
