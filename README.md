@@ -8,9 +8,18 @@ without JavaScript; API documentation uses Swagger UI separately.
 <!-- deployment:start -->
 ## Laboratory deployment
 
-No deployment has been verified from this repository yet. After a successful GitHub
-deployment, this block will show the current application URL, source revision and UTC
-verification time. Stop/destroy removes the old links.
+[![CI](https://github.com/calebchm16-cloud/SRE-Project-2026/actions/workflows/ci.yml/badge.svg)](https://github.com/calebchm16-cloud/SRE-Project-2026/actions/workflows/ci.yml)
+
+Status: **Running when last verified** (2026-11-18 06:14:46 UTC).
+
+- Application: [http://100.54.133.50/](http://100.54.133.50/)
+- API documentation: [http://100.54.133.50/docs](http://100.54.133.50/docs)
+- Readiness: [http://100.54.133.50/health/ready](http://100.54.133.50/health/ready)
+- Source: [`512804ec12a6`](https://github.com/calebchm16-cloud/SRE-Project-2026/commit/512804ec12a6086fcf3f5eb5055414dbf4ea0714)
+
+Grafana, Prometheus and Alertmanager use private Systems Manager tunnels; see [AWS operation](docs/aws.md).
+
+This is an ephemeral, read-only HTTP demonstration. The address can change after stop/start. This timestamped snapshot is not a live uptime check.
 <!-- deployment:end -->
 
 ## Features
