@@ -1,0 +1,6 @@
+# Copy outside Git and supply allowed_account_id through TF_VAR_allowed_account_id.
+region       = "us-east-1"
+project      = "cahuita-lab"
+architecture = "arm64"
+disk_gib     = 30
+web_cidrs    = ["0.0.0.0/0"]

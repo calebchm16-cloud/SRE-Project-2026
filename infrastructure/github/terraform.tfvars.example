@@ -1,0 +1,7 @@
+region  = "us-east-1"
+project = "cahuita-lab"
+# Supply TF_VAR_allowed_account_id privately.
+# Use your exact claim. New repositories may include immutable owner/repository IDs:
+github_subject = "repo:YOUR_OWNER@OWNER_ID/YOUR_REPO@REPOSITORY_ID:environment:laboratory"
+# If the GitHub OIDC provider exists, supply its ARN privately instead of creating another.
+# existing_oidc_provider_arn = "..."

@@ -1,0 +1,1241 @@
+{
+  "uid": "cahuita-application",
+  "title": "Application Traffic",
+  "id": null,
+  "version": 1,
+  "schemaVersion": 41,
+  "editable": false,
+  "tags": [
+    "cahuita",
+    "sre-academy"
+  ],
+  "timezone": "America/Costa_Rica",
+  "refresh": "10s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m"
+    ]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "namespace",
+        "label": "Namespace",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "cahuita-prometheus"
+        },
+        "query": {
+          "query": "label_values(up{job=\"cahuita\"}, namespace)",
+          "refId": "VariableQuery"
+        },
+        "definition": "label_values(up{job=\"cahuita\"}, namespace)",
+        "refresh": 2,
+        "sort": 1,
+        "multi": false,
+        "includeAll": false,
+        "allValue": null,
+        "current": {
+          "text": "cahuita-conditions",
+          "value": "cahuita-conditions"
+        },
+        "options": [],
+        "hide": 0,
+        "skipUrlSync": false
+      },
+      {
+        "name": "pod",
+        "label": "Pod",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "cahuita-prometheus"
+        },
+        "query": {
+          "query": "label_values(up{job=\"cahuita\",namespace=~\"${namespace}\"}, pod)",
+          "refId": "VariableQuery"
+        },
+        "definition": "label_values(up{job=\"cahuita\",namespace=~\"${namespace}\"}, pod)",
+        "refresh": 2,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [],
+        "hide": 0,
+        "skipUrlSync": false
+      },
+      {
+        "name": "route",
+        "label": "Route",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "cahuita-prometheus"
+        },
+        "query": {
+          "query": "label_values(http_requests_total{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\"}, route)",
+          "refId": "VariableQuery"
+        },
+        "definition": "label_values(http_requests_total{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\"}, route)",
+        "refresh": 2,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": [],
+        "hide": 0,
+        "skipUrlSync": false
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Exporter target",
+      "type": "stat",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cahuita-prometheus"
+      },
+      "description": "UP means metrics are reachable, not that forecasts are usable.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cahuita-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "up{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\"}",
+          "legendFormat": "{{pod}}",
+          "range": false,
+          "instant": true,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "noValue": "No data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "No data",
+                  "color": "gray"
+                }
+              }
+            },
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 2,
+      "title": "Requests / second",
+      "type": "stat",
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 8,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cahuita-prometheus"
+      },
+      "description": "Includes Kubernetes health probes and all application routes. /metrics excludes itself from HTTP instrumentation. No data is distinct from zero. Current observations require a successful exporter scrape; gaps are not connected.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cahuita-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum((rate(http_requests_total{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\",route=~\"${route}\"}[$__rate_interval])) and on(job,namespace,pod,container,instance) (up{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\"} == 1))",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 2,
+          "noValue": "No data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "No data",
+                  "color": "gray"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 3,
+      "title": "Estimated requests in range",
+      "type": "stat",
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cahuita-prometheus"
+      },
+      "description": "Estimated counter increase over the selected time range. Prometheus extrapolates between scrapes; values can be fractional and do not constitute an exact event log. Includes health probes.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cahuita-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(http_requests_total{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\",route=~\"${route}\"}[$__range]))",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "noValue": "No data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "No data",
+                  "color": "gray"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 4,
+      "title": "Client errors (4xx)",
+      "type": "stat",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 8,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cahuita-prometheus"
+      },
+      "description": "Includes Kubernetes health probes and all application routes. /metrics excludes itself from HTTP instrumentation. No requests gives No data, not 0%.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cahuita-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "100 * (sum((rate(http_requests_total{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\",route=~\"${route}\",status_code=~\"4..\"}[$__rate_interval])) and on(job,namespace,pod,container,instance) (up{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\"} == 1)) or (0 * sum((rate(http_requests_total{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\",route=~\"${route}\"}[$__rate_interval])) and on(job,namespace,pod,container,instance) (up{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\"} == 1)))) / (sum((rate(http_requests_total{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\",route=~\"${route}\"}[$__rate_interval])) and on(job,namespace,pod,container,instance) (up{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\"} == 1)) > 0)",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "noValue": "No data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "No data",
+                  "color": "gray"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 5,
+      "title": "Server errors (5xx)",
+      "type": "stat",
+      "gridPos": {
+        "x": 8,
+        "y": 4,
+        "w": 8,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cahuita-prometheus"
+      },
+      "description": "Includes Kubernetes health probes and all application routes. /metrics excludes itself from HTTP instrumentation. Readiness 503 responses are included. No requests gives No data, not 0%.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cahuita-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "100 * (sum((rate(http_requests_total{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\",route=~\"${route}\",status_code=~\"5..\"}[$__rate_interval])) and on(job,namespace,pod,container,instance) (up{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\"} == 1)) or (0 * sum((rate(http_requests_total{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\",route=~\"${route}\"}[$__rate_interval])) and on(job,namespace,pod,container,instance) (up{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\"} == 1)))) / (sum((rate(http_requests_total{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\",route=~\"${route}\"}[$__rate_interval])) and on(job,namespace,pod,container,instance) (up{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\"} == 1)) > 0)",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "noValue": "No data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "No data",
+                  "color": "gray"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 6,
+      "title": "Latency p95",
+      "type": "stat",
+      "gridPos": {
+        "x": 16,
+        "y": 4,
+        "w": 8,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cahuita-prometheus"
+      },
+      "description": "Includes Kubernetes health probes and all application routes. /metrics excludes itself from HTTP instrumentation.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cahuita-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le) ((rate(http_request_duration_seconds_bucket{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\",route=~\"${route}\"}[$__rate_interval])) and on(job,namespace,pod,container,instance) (up{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\"} == 1)))",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 2,
+          "noValue": "No data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "No data",
+                  "color": "gray"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "id": 7,
+      "title": "Request rate by route",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cahuita-prometheus"
+      },
+      "description": "Includes Kubernetes health probes and all application routes. /metrics excludes itself from HTTP instrumentation. No data is distinct from zero. Current observations require a successful exporter scrape; gaps are not connected.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cahuita-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (route) ((rate(http_requests_total{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\",route=~\"${route}\"}[$__rate_interval])) and on(job,namespace,pod,container,instance) (up{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\"} == 1))",
+          "legendFormat": "{{route}}",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 2,
+          "noValue": "No data",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "No data",
+                  "color": "gray"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "insertNulls": false,
+            "axisPlacement": "auto",
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Request rate by HTTP class",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cahuita-prometheus"
+      },
+      "description": "Includes Kubernetes health probes and all application routes. /metrics excludes itself from HTTP instrumentation.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cahuita-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (status_class) (label_replace((rate(http_requests_total{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\",route=~\"${route}\"}[$__rate_interval])) and on(job,namespace,pod,container,instance) (up{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\"} == 1), \"status_class\", \"$1\", \"status_code\", \"([1-5])..\"))",
+          "legendFormat": "{{status_class}}xx",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 2,
+          "noValue": "No data",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "No data",
+                  "color": "gray"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "insertNulls": false,
+            "axisPlacement": "auto",
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "Client and server error rates",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cahuita-prometheus"
+      },
+      "description": "Includes Kubernetes health probes and all application routes. /metrics excludes itself from HTTP instrumentation. A missing error series is zero only while request observations exist.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cahuita-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(sum((rate(http_requests_total{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\",route=~\"${route}\",status_code=~\"4..\"}[$__rate_interval])) and on(job,namespace,pod,container,instance) (up{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\"} == 1)) or (0 * sum((rate(http_requests_total{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\",route=~\"${route}\"}[$__rate_interval])) and on(job,namespace,pod,container,instance) (up{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\"} == 1))))",
+          "legendFormat": "4xx",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cahuita-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(sum((rate(http_requests_total{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\",route=~\"${route}\",status_code=~\"5..\"}[$__rate_interval])) and on(job,namespace,pod,container,instance) (up{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\"} == 1)) or (0 * sum((rate(http_requests_total{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\",route=~\"${route}\"}[$__rate_interval])) and on(job,namespace,pod,container,instance) (up{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\"} == 1))))",
+          "legendFormat": "5xx",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 2,
+          "noValue": "No data",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "No data",
+                  "color": "gray"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "insertNulls": false,
+            "axisPlacement": "auto",
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "Request latency: mean, p95 and p99",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cahuita-prometheus"
+      },
+      "description": "Includes Kubernetes health probes and all application routes. /metrics excludes itself from HTTP instrumentation. Percentiles aggregate histogram buckets after applying rate.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cahuita-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum((rate(http_request_duration_seconds_sum{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\",route=~\"${route}\"}[$__rate_interval])) and on(job,namespace,pod,container,instance) (up{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\"} == 1)) / (sum((rate(http_request_duration_seconds_count{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\",route=~\"${route}\"}[$__rate_interval])) and on(job,namespace,pod,container,instance) (up{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\"} == 1)) > 0)",
+          "legendFormat": "Mean",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cahuita-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le) ((rate(http_request_duration_seconds_bucket{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\",route=~\"${route}\"}[$__rate_interval])) and on(job,namespace,pod,container,instance) (up{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\"} == 1)))",
+          "legendFormat": "p95",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cahuita-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum by (le) ((rate(http_request_duration_seconds_bucket{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\",route=~\"${route}\"}[$__rate_interval])) and on(job,namespace,pod,container,instance) (up{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\"} == 1)))",
+          "legendFormat": "p99",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 2,
+          "noValue": "No data",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "No data",
+                  "color": "gray"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "insertNulls": false,
+            "axisPlacement": "auto",
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "title": "Request latency p95 by route",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cahuita-prometheus"
+      },
+      "description": "Includes Kubernetes health probes and all application routes. /metrics excludes itself from HTTP instrumentation.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cahuita-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le, route) ((rate(http_request_duration_seconds_bucket{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\",route=~\"${route}\"}[$__rate_interval])) and on(job,namespace,pod,container,instance) (up{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\"} == 1)))",
+          "legendFormat": "{{route}}",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 2,
+          "noValue": "No data",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "No data",
+                  "color": "gray"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "insertNulls": false,
+            "axisPlacement": "auto",
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "title": "Requests by method, route and status",
+      "type": "table",
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cahuita-prometheus"
+      },
+      "description": "Estimated counter increase over the selected time range. Prometheus extrapolates between scrapes; values can be fractional and do not constitute an exact event log. Includes health probes.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cahuita-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (method, route, status_code) (increase(http_requests_total{job=\"cahuita\",namespace=~\"${namespace}\",pod=~\"${pod}\",route=~\"${route}\"}[$__range]))",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1,
+          "noValue": "No data",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "No data",
+                  "color": "gray"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "method"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 60
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "route"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 225
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "status_code"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 75
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Estimated requests"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "method": 0,
+              "route": 1,
+              "status_code": 2,
+              "Value": 3
+            },
+            "renameByName": {
+              "Value": "Estimated requests"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "title": "Application Traffic",
+      "type": "link",
+      "url": "/d/cahuita-application/application-traffic",
+      "keepTime": true,
+      "includeVars": true,
+      "targetBlank": false
+    },
+    {
+      "title": "Forecast Operations",
+      "type": "link",
+      "url": "/d/cahuita-forecasts/forecast-operations",
+      "keepTime": true,
+      "includeVars": true,
+      "targetBlank": false
+    }
+  ]
+}

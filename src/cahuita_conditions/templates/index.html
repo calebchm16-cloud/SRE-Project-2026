@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="60">
+  <title>Cahuita Conditions</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='vendor/bootstrap.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}">
+</head>
+<body>
+<main class="container-fluid">
+  <h3>Cahuita Conditions <small>Forecast demonstration</small></h3>
+  <form method="get" action="/" class="form-inline">
+    <div class="form-group">
+      <label for="location">Location</label>
+      <select id="location" name="location" class="form-control input-sm">
+        {% for loc in locations %}
+        <option value="{{ loc.id }}"{% if loc.id == selected.id %} selected{% endif %}>{{ loc.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-default btn-sm">Show / refresh forecast</button>
+    <a class="btn btn-default btn-sm" href="/docs">API documentation</a>
+  </form>
+  <hr>
+  <p><strong>{{ selected.name }}</strong> ({{ selected.latitude }}, {{ selected.longitude }})
+    &mdash; Times: {{ selected.timezone }} &mdash; Status: <strong>{{ forecast.status }}</strong></p>
+  <p>Model forecasts for up to 48 hours. Marine values describe the selected offshore model grid,
+    not observations at the beach. This page reads the local cache and reloads every 60 seconds.</p>
+  {% if forecast.status == 'unavailable' %}
+  <p role="status"><strong>Forecast unavailable.</strong> Waiting for usable data. The page remains available while the application retries in the background.</p>
+  {% elif forecast.status == 'degraded' %}
+  <p role="status"><strong>Degraded forecast.</strong> One or more sources are stale, incomplete, unavailable, or their latest update failed. Available data is shown below.</p>
+  {% endif %}
+  <div class="table-responsive">
+    <table class="table table-condensed table-bordered">
+      <caption>Source status (download timestamps in UTC; age is since the last validated download, not the model run)</caption>
+      <thead><tr><th scope="col">Source</th><th scope="col">Freshness</th><th scope="col">Last valid download</th><th scope="col">Age (minutes)</th><th scope="col">Hours available</th><th scope="col">Model grid (lat, lon)</th><th scope="col">Latest update / reason</th></tr></thead>
+      <tbody>{% for source in sources %}<tr>
+        <th scope="row">Open-Meteo {{ source.endpoint }}</th>
+        <td>{{ source.freshness }}</td>
+        <td>{{ source.last_success_at.strftime('%Y-%m-%d %H:%M UTC') if source.last_success_at else '-' }}</td>
+        <td>{{ '%.1f'|format(source.cache_age_seconds / 60) if source.cache_age_seconds is not none else '-' }}</td>
+        <td>{{ source.available_hours }}</td>
+        <td>{% if source.grid_coordinates %}{{ '%.4f'|format(source.grid_coordinates.latitude) }}, {{ '%.4f'|format(source.grid_coordinates.longitude) }}{% else %}-{% endif %}</td>
+        <td>{{ source.last_outcome }}{% if source.reason %} / {{ source.reason }}{% endif %}</td>
+      </tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  {% set fields = [('temperature_2m', 'Temperature (°C)'), ('precipitation_probability', 'Rain probability (%)'), ('precipitation', 'Precipitation (mm)'), ('wind_speed_10m', 'Wind (km/h)'), ('wind_direction_10m', 'Wind from (°)'), ('wind_gusts_10m', 'Gusts (km/h)'), ('wave_height', 'Wave height (m)'), ('wave_period', 'Wave period (s)'), ('wave_direction', 'Waves from (°)')] %}
+  {% if rows %}
+  <h4>First available interval: {{ rows[0].time }}</h4>
+  <p>{% for key, label in fields %}{{ label }}: <strong>{{ '%.1f'|format(rows[0]['values'][key]) if rows[0]['values'].get(key) is not none else '-' }}</strong>{% if not loop.last %}; {% endif %}{% endfor %}</p>
+  {% endif %}
+  <div class="table-responsive">
+    <table class="table table-condensed table-bordered">
+      <caption>Hourly forecast &mdash; {{ selected.timezone }}; missing values shown as a dash</caption>
+      <thead><tr><th scope="col">Local time</th>{% for key, label in fields %}<th scope="col">{{ label }}</th>{% endfor %}</tr></thead>
+      <tbody>{% for row in rows %}<tr><th scope="row">{{ row.time }}</th>{% for key, label in fields %}<td>{{ '%.1f'|format(row['values'][key]) if row['values'].get(key) is not none else '-' }}</td>{% endfor %}</tr>
+      {% else %}<tr><td colspan="10">No usable forecast records.</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  <hr>
+  <p class="small">Forecast data: <a href="https://open-meteo.com/">Open-Meteo</a>,
+    <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+    <a href="https://open-meteo.com/en/docs">Weather model sources</a>;
+    <a href="https://open-meteo.com/en/docs/marine-weather-api#data_sources">marine model sources and attribution</a>
+    (including Copernicus Marine / Météo-France, ECMWF, NOAA, and DWD, depending on the selected model).
+    Displayed data is normalized and filtered to upcoming hours. Version {{ version }}.</p>
+</main>
+</body>
+</html>

@@ -1,0 +1,73 @@
+groups:
+  - name: cahuita-application
+    rules:
+      - alert: CahuitaApplicationUnreachable
+        expr: |
+          (max by (namespace) (up{job="cahuita",namespace="cahuita-conditions"}) == 0)
+          or max by (namespace) (absent(up{job="cahuita",namespace="cahuita-conditions"}))
+        for: 2m
+        labels:
+          service: cahuita-conditions
+          severity: critical
+        annotations:
+          summary: Cahuita application cannot be scraped
+          description: No application target is reachable, or the expected target is absent.
+          action: Check application pods, events and liveness in the affected namespace.
+      - alert: CahuitaApplicationNotReady
+        expr: |
+          (
+            sum by (namespace) (rate(http_requests_total{job="cahuita",namespace="cahuita-conditions",route="/health/ready",status_code="503"}[1m])) > 0
+            unless on (namespace)
+            sum by (namespace) (rate(http_requests_total{job="cahuita",namespace="cahuita-conditions",route="/health/ready",status_code="200"}[1m])) > 0
+          )
+          and on (namespace) (max by (namespace) (up{job="cahuita",namespace="cahuita-conditions"}) == 1)
+        for: 2m
+        labels:
+          service: cahuita-conditions
+          severity: critical
+        annotations:
+          summary: Cahuita application readiness is failing
+          description: Observed probes fail with HTTP 503 and no successful readiness probes occur in the one-minute window.
+          action: Inspect /api/v1/status for storage, refresh-loop and forecast availability errors.
+      - alert: CahuitaRepeatedRefreshFailures
+        expr: |
+          (
+            sum by (namespace, location_id, source) (increase(forecast_refresh_total{job="cahuita",namespace="cahuita-conditions",outcome!="success"}[1h])) >= 3
+            unless on (namespace, location_id, source)
+            sum by (namespace, location_id, source) (increase(forecast_refresh_total{job="cahuita",namespace="cahuita-conditions",outcome="success"}[30m])) > 0
+          )
+          and on (namespace) (max by (namespace) (up{job="cahuita",namespace="cahuita-conditions"}) == 1)
+        for: 5m
+        labels:
+          service: cahuita-conditions
+          severity: warning
+        annotations:
+          summary: Repeated Cahuita forecast refresh failures
+          description: At least three failed refresh increments were observed in one hour, without successful increments in the last 30 minutes. Cached forecasts may still be usable.
+          action: Inspect refresh outcomes, provider responses, DNS and outbound connectivity.
+      - alert: CahuitaForecastSourceUnusable
+        expr: |
+          (max by (namespace, location_id, source) (forecast_data_usable{job="cahuita",namespace="cahuita-conditions"}) == 0)
+          and on (namespace) (max by (namespace) (up{job="cahuita",namespace="cahuita-conditions"}) == 1)
+        for: 5m
+        labels:
+          service: cahuita-conditions
+          severity: warning
+        annotations:
+          summary: A Cahuita forecast source has no usable data
+          description: The source reports no usable forecast. Another source may still keep the application Ready.
+          action: Check download age, available hours and the latest refresh outcome for this location and source.
+      - alert: CahuitaForecastsUnavailable
+        expr: |
+          (max by (namespace, location_id) (forecast_data_usable{job="cahuita",namespace="cahuita-conditions",source=~"weather|marine"}) == 0)
+          and on (namespace, location_id)
+          (count by (namespace, location_id) (max by (namespace, location_id, source) (forecast_data_usable{job="cahuita",namespace="cahuita-conditions",source=~"weather|marine"})) == 2)
+          and on (namespace) (max by (namespace) (up{job="cahuita",namespace="cahuita-conditions"}) == 1)
+        for: 2m
+        labels:
+          service: cahuita-conditions
+          severity: critical
+        annotations:
+          summary: Cahuita has no usable weather or marine forecasts
+          description: Both configured sources are present in telemetry and report no usable data for this location.
+          action: Check provider refresh errors and cache expiry; restore at least one source to recover forecast availability.

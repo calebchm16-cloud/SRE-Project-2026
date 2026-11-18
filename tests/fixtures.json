@@ -1,0 +1,10 @@
+{
+  "weather": {
+    "units": {"temperature_2m": "°C", "precipitation_probability": "%", "precipitation": "mm", "wind_speed_10m": "km/h", "wind_direction_10m": "°", "wind_gusts_10m": "km/h"},
+    "values": {"temperature_2m": 27.5, "precipitation_probability": 35, "precipitation": 0.2, "wind_speed_10m": 9, "wind_direction_10m": 80, "wind_gusts_10m": 14}
+  },
+  "marine": {
+    "units": {"wave_height": "m", "wave_period": "s", "wave_direction": "°"},
+    "values": {"wave_height": 0.8, "wave_period": 7, "wave_direction": 65}
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "disable_existing_loggers": false,
+  "formatters": {"json": {"()": "cahuita_conditions.telemetry.JsonFormatter"}},
+  "handlers": {"stdout": {"class": "logging.StreamHandler", "stream": "ext://sys.stdout", "formatter": "json"}},
+  "root": {"level": "INFO", "handlers": ["stdout"]},
+  "loggers": {"uvicorn": {"level": "INFO", "propagate": true, "handlers": []}, "uvicorn.error": {"level": "INFO", "propagate": true, "handlers": []}, "uvicorn.access": {"level": "WARNING", "propagate": true, "handlers": []}}
+}

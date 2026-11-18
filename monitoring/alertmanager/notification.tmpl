@@ -1,0 +1,16 @@
+{{ define "cahuita.telegram" -}}
+{{ .Status | toUpper }} | Cahuita Conditions
+Alert: {{ .GroupLabels.alertname }}
+Namespace: {{ .GroupLabels.namespace }}
+{{ range .Alerts }}
+{{ .Status | toUpper }} | {{ .Labels.severity }}
+{{ if .Labels.location_id }}Location: {{ .Labels.location_id }}
+{{ end }}{{ if .Labels.source }}Source: {{ .Labels.source }}
+{{ end }}{{ .Annotations.summary }}
+{{ .Annotations.description }}
+Started (UTC): {{ .StartsAt.UTC.Format "2006-01-02T15:04:05Z" }}
+{{ if eq .Status "resolved" }}Ended (UTC): {{ .EndsAt.UTC.Format "2006-01-02T15:04:05Z" }}
+{{ end }}Action: {{ .Annotations.action }}
+{{ end }}
+RESOLVED means this alert condition cleared; it is not a statement about every service.
+{{- end }}

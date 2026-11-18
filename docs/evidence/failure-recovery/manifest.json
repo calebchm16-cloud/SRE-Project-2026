@@ -1,0 +1,303 @@
+{
+  "run_id": "df83150e55",
+  "namespace": "cahuita-alert-validation-df83150e55",
+  "started_at": "2026-11-03T20:13:22.417146+00:00",
+  "finished_at": "2026-11-03T20:19:06.245829+00:00",
+  "application_image": "cahuita-conditions:0.1.0-ac6d7e2da67c",
+  "timings": {
+    "refresh_seconds": 1,
+    "stale_seconds": 15,
+    "expire_seconds": 120,
+    "scrape_seconds": 5,
+    "evaluation_seconds": 1,
+    "alert_for_seconds": 5
+  },
+  "notification_channel": "simulated_telegram_api",
+  "real_telegram": "pending_user_configuration",
+  "real_workloads_preserved": true,
+  "cleanup": "passed",
+  "rules_activated_at": "2026-11-03T20:13:53.198919+00:00",
+  "startup_notifications": 0,
+  "phases": [
+    {
+      "phase": "healthy",
+      "captured_at": "2026-11-03T20:13:55.464182+00:00",
+      "forecast_http": 200,
+      "forecast_status": "ok",
+      "readiness_http": 200,
+      "liveness_http": 200,
+      "kubernetes_ready": true,
+      "prometheus_up": [
+        1.0
+      ],
+      "completed_notification_requests": 0.0,
+      "sources": {
+        "weather": {
+          "freshness": "fresh",
+          "last_success_at": "2026-11-03T20:13:54.292991Z",
+          "cache_age_seconds": 0.026593,
+          "available_hours": 48,
+          "last_outcome": "success"
+        },
+        "marine": {
+          "freshness": "fresh",
+          "last_success_at": "2026-11-03T20:13:54.291684Z",
+          "cache_age_seconds": 0.0279,
+          "available_hours": 48,
+          "last_outcome": "success"
+        }
+      },
+      "firing": []
+    },
+    {
+      "phase": "cached",
+      "captured_at": "2026-11-03T20:14:14.703605+00:00",
+      "forecast_http": 200,
+      "forecast_status": "degraded",
+      "readiness_http": 200,
+      "liveness_http": 200,
+      "kubernetes_ready": true,
+      "prometheus_up": [
+        1.0
+      ],
+      "completed_notification_requests": 1.0,
+      "sources": {
+        "weather": {
+          "freshness": "fresh",
+          "last_success_at": "2026-11-03T20:14:13.333017Z",
+          "cache_age_seconds": 0.35526,
+          "available_hours": 48,
+          "last_outcome": "success"
+        },
+        "marine": {
+          "freshness": "stale",
+          "last_success_at": "2026-11-03T20:13:57.297635Z",
+          "cache_age_seconds": 16.390642,
+          "available_hours": 48,
+          "last_outcome": "http_error"
+        }
+      },
+      "firing": [
+        "CahuitaRepeatedRefreshFailures"
+      ]
+    },
+    {
+      "phase": "partial",
+      "captured_at": "2026-11-03T20:16:10.260558+00:00",
+      "forecast_http": 200,
+      "forecast_status": "degraded",
+      "readiness_http": 200,
+      "liveness_http": 200,
+      "kubernetes_ready": true,
+      "prometheus_up": [
+        1.0
+      ],
+      "completed_notification_requests": 2.0,
+      "sources": {
+        "weather": {
+          "freshness": "fresh",
+          "last_success_at": "2026-11-03T20:16:08.865077Z",
+          "cache_age_seconds": 0.243463,
+          "available_hours": 48,
+          "last_outcome": "success"
+        },
+        "marine": {
+          "freshness": "unavailable",
+          "last_success_at": "2026-11-03T20:13:57.297635Z",
+          "cache_age_seconds": 131.810905,
+          "available_hours": 0,
+          "last_outcome": "http_error"
+        }
+      },
+      "firing": [
+        "CahuitaForecastSourceUnusable",
+        "CahuitaRepeatedRefreshFailures"
+      ]
+    },
+    {
+      "phase": "unavailable",
+      "captured_at": "2026-11-03T20:18:27.401861+00:00",
+      "forecast_http": 503,
+      "forecast_status": "unavailable",
+      "readiness_http": 503,
+      "liveness_http": 200,
+      "kubernetes_ready": false,
+      "prometheus_up": [
+        1.0
+      ],
+      "completed_notification_requests": 4.0,
+      "sources": {
+        "weather": {
+          "freshness": "unavailable",
+          "last_success_at": "2026-11-03T20:16:12.926218Z",
+          "cache_age_seconds": 132.676679,
+          "available_hours": 0,
+          "last_outcome": "http_error"
+        },
+        "marine": {
+          "freshness": "unavailable",
+          "last_success_at": "2026-11-03T20:13:57.297635Z",
+          "cache_age_seconds": 268.305262,
+          "available_hours": 0,
+          "last_outcome": "http_error"
+        }
+      },
+      "firing": [
+        "CahuitaApplicationNotReady",
+        "CahuitaForecastSourceUnusable",
+        "CahuitaForecastsUnavailable",
+        "CahuitaRepeatedRefreshFailures"
+      ]
+    },
+    {
+      "phase": "recovered",
+      "captured_at": "2026-11-03T20:18:40.052148+00:00",
+      "forecast_http": 200,
+      "forecast_status": "ok",
+      "readiness_http": 200,
+      "liveness_http": 200,
+      "kubernetes_ready": true,
+      "prometheus_up": [
+        1.0
+      ],
+      "completed_notification_requests": 7.0,
+      "sources": {
+        "weather": {
+          "freshness": "fresh",
+          "last_success_at": "2026-11-03T20:18:38.216592Z",
+          "cache_age_seconds": 0.690724,
+          "available_hours": 48,
+          "last_outcome": "success"
+        },
+        "marine": {
+          "freshness": "fresh",
+          "last_success_at": "2026-11-03T20:18:38.217725Z",
+          "cache_age_seconds": 0.689591,
+          "available_hours": 48,
+          "last_outcome": "success"
+        }
+      },
+      "firing": []
+    }
+  ],
+  "critical_receipts": [
+    {
+      "status": "FIRING",
+      "alertname": "CahuitaForecastsUnavailable",
+      "namespace": "cahuita-alert-validation-df83150e55",
+      "location_id": "cahuita",
+      "http_result": 200,
+      "received_timestamp": 1793737103.082939,
+      "started_at": "2026-11-03T20:18:21Z",
+      "ended_at": null
+    },
+    {
+      "status": "RESOLVED",
+      "alertname": "CahuitaForecastsUnavailable",
+      "namespace": "cahuita-alert-validation-df83150e55",
+      "location_id": "cahuita",
+      "http_result": 200,
+      "received_timestamp": 1793737113.0595217,
+      "started_at": "2026-11-03T20:18:21Z",
+      "ended_at": "2026-11-03T20:18:31Z"
+    }
+  ],
+  "screenshots": [
+    {
+      "file": "01-healthy-app.png",
+      "run_id": "df83150e55",
+      "phase": "healthy",
+      "captured_at": "2026-11-03T20:13:57.148996+00:00",
+      "origin": "application, JavaScript disabled",
+      "sha256": "eb5a51803723e9524a7ef6896c5a8872434039162aba744275dff526781176ea"
+    },
+    {
+      "file": "02-cached-app.png",
+      "run_id": "df83150e55",
+      "phase": "cached",
+      "captured_at": "2026-11-03T20:14:15.910051+00:00",
+      "origin": "application, JavaScript disabled",
+      "sha256": "da58f859d734cef6b67c4128accdd23ed8caa9c7ae7861689d006e716a6efbcd"
+    },
+    {
+      "file": "08-prometheus-firing.png",
+      "run_id": "df83150e55",
+      "phase": "cached",
+      "captured_at": "2026-11-03T20:14:16.444638+00:00",
+      "origin": "Prometheus alerts UI",
+      "sha256": "5f42473f2aa99a80e3045bd08ff6303ba0ceee9cef7a3ad109d81b6f510fb079"
+    },
+    {
+      "file": "03-partial-app.png",
+      "run_id": "df83150e55",
+      "phase": "partial",
+      "captured_at": "2026-11-03T20:16:11.972221+00:00",
+      "origin": "application, JavaScript disabled",
+      "sha256": "51d6dff6c102c1fac5b186ae6c24ebc5bb24e766b9eb5aa564640bda02f478a2"
+    },
+    {
+      "file": "04-unavailable-app.png",
+      "run_id": "df83150e55",
+      "phase": "unavailable",
+      "captured_at": "2026-11-03T20:18:29.872830+00:00",
+      "origin": "application, JavaScript disabled",
+      "sha256": "ca4d4615eb8279baf37a03a19b3e9a22c36e8c9bfeafe86b8de35fa29d8975f0"
+    },
+    {
+      "file": "09-alertmanager-firing.png",
+      "run_id": "df83150e55",
+      "phase": "unavailable",
+      "captured_at": "2026-11-03T20:18:30.140414+00:00",
+      "origin": "Alertmanager alerts UI",
+      "sha256": "a0bc5d73a2e2536a4487475d7dc382e7bfa62cbdd90252b3f489f210bb8c06de"
+    },
+    {
+      "file": "11-simulated-firing.png",
+      "run_id": "df83150e55",
+      "phase": "unavailable",
+      "captured_at": "2026-11-03T20:18:30.324982+00:00",
+      "origin": "recorded local mock receipt / SIMULATED DELIVERY",
+      "sha256": "496899bcf23895ec6e642ecd31d69bec4c0d30dd50452fd2828d99c31172489a"
+    },
+    {
+      "file": "05-recovered-app.png",
+      "run_id": "df83150e55",
+      "phase": "recovered",
+      "captured_at": "2026-11-03T20:18:41.451564+00:00",
+      "origin": "application, JavaScript disabled",
+      "sha256": "55b6ec5e365212ff5752dd16732f453b7d8220448516ed1e811606bfa4e80592"
+    },
+    {
+      "file": "10-alertmanager-resolved.png",
+      "run_id": "df83150e55",
+      "phase": "recovered",
+      "captured_at": "2026-11-03T20:18:41.674523+00:00",
+      "origin": "Alertmanager alerts UI",
+      "sha256": "62ffdd3588d83ff71332d0c624012a556aec43b95f096a6c58def9d65672428c"
+    },
+    {
+      "file": "12-simulated-resolved.png",
+      "run_id": "df83150e55",
+      "phase": "recovered",
+      "captured_at": "2026-11-03T20:18:41.824456+00:00",
+      "origin": "recorded local mock receipt / SIMULATED DELIVERY",
+      "sha256": "019b570c83735d063e202619b1a013e7f474c13107aec11f0036456ac181a006"
+    },
+    {
+      "file": "06-traffic-history.png",
+      "run_id": "df83150e55",
+      "phase": "recovered",
+      "captured_at": "2026-11-03T20:18:46.424442+00:00",
+      "origin": "isolated Grafana / fixed full-run time range",
+      "sha256": "e6f14d55447c62cd1c824df12e9ccd2d1cb40af07c4d71b22b96dd5b76470947"
+    },
+    {
+      "file": "07-forecast-history.png",
+      "run_id": "df83150e55",
+      "phase": "recovered",
+      "captured_at": "2026-11-03T20:18:49.099226+00:00",
+      "origin": "isolated Grafana / fixed full-run time range",
+      "sha256": "d9b4d0ca63141a3a41747167769c973434929f86a159f0412c6408beea3cb4b3"
+    }
+  ]
+}

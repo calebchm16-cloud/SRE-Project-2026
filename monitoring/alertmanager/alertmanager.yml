@@ -1,0 +1,43 @@
+global:
+  resolve_timeout: 5m
+templates:
+  - /etc/alertmanager/notification.tmpl
+route:
+  receiver: telegram
+  group_by: [alertname, namespace, location_id]
+  group_wait: 30s
+  group_interval: 1m
+  repeat_interval: 4h
+  routes:
+    - matchers: ['alertname="CahuitaNotificationTest"', 'test="true"']
+      receiver: telegram-test
+receivers:
+  - name: telegram
+    telegram_configs:
+      - bot_token_file: /run/telegram/bot-token
+        chat_id_file: /run/telegram/chat-id
+        send_resolved: true
+        parse_mode: ""
+        message: '{{ template "cahuita.telegram" . }}'
+  # Same external chat, separately attributed so an unrelated incident cannot pass the test.
+  - name: telegram-test
+    telegram_configs:
+      - bot_token_file: /run/telegram/bot-token
+        chat_id_file: /run/telegram/chat-id
+        send_resolved: true
+        parse_mode: ""
+        message: '{{ template "cahuita.telegram" . }}'
+inhibit_rules:
+  - source_matchers: ['alertname="CahuitaApplicationUnreachable"']
+    target_matchers: ['alertname=~"CahuitaApplicationNotReady|CahuitaRepeatedRefreshFailures|CahuitaForecastSourceUnusable|CahuitaForecastsUnavailable"']
+    equal: [service, namespace]
+  - source_matchers: ['alertname="CahuitaForecastsUnavailable"']
+    target_matchers: ['alertname=~"CahuitaApplicationNotReady|CahuitaRepeatedRefreshFailures|CahuitaForecastSourceUnusable"']
+    equal: [service, namespace, location_id]
+  # Readiness has no location_id; match it at application/namespace scope.
+  - source_matchers: ['alertname="CahuitaForecastsUnavailable"']
+    target_matchers: ['alertname="CahuitaApplicationNotReady"']
+    equal: [service, namespace]
+  - source_matchers: ['alertname="CahuitaForecastSourceUnusable"']
+    target_matchers: ['alertname="CahuitaRepeatedRefreshFailures"']
+    equal: [service, namespace, location_id, source]

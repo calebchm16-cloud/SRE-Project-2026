@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: cahuita-conditions
+resources:
+  - namespace.yaml
+  - application.yaml
+labels:
+  - pairs:
+      app.kubernetes.io/name: cahuita-conditions
+      app.kubernetes.io/part-of: cahuita-conditions
+    includeSelectors: false
+configMapGenerator:
+  - name: cahuita-settings
+    literals:
+      - CAHUITA_DATABASE_PATH=/data/cache.sqlite3
+      - CAHUITA_LOCATIONS_FILE=/app/config/locations.json
+      - CAHUITA_REFRESH_SECONDS=900
+      - CAHUITA_STALE_SECONDS=1800
+      - CAHUITA_EXPIRE_SECONDS=21600
+      - CAHUITA_REQUEST_TIMEOUT_SECONDS=10
+      - CAHUITA_RETRY_DELAY_SECONDS=0.5
+      - CAHUITA_HEARTBEAT_SECONDS=1
+      - CAHUITA_LOG_LEVEL=INFO
+      - CAHUITA_WEATHER_BASE_URL=https://api.open-meteo.com
+      - CAHUITA_MARINE_BASE_URL=https://marine-api.open-meteo.com
+  - name: cahuita-locations
+    files:
+      - locations.json
