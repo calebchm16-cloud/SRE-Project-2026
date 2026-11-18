@@ -101,11 +101,13 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: deployment-evidence
           path: artifacts/published
-      - name: Update the README and tag the actual deployed source
+      - name: Tag the verified source and update the README
         env:
           REPOSITORY: ${{ github.repository }}
           SOURCE_SHA: ${{ github.sha }}
@@ -121,13 +123,15 @@ jobs:
           python3 scripts/publish_deployment.py --report artifacts/published/deployment.json --repository "$REPOSITORY"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add README.md
-          if ! git diff --cached --quiet; then
-            git commit -m 'docs: update laboratory deployment status [skip ci]'
-            git push origin "HEAD:$DEFAULT_BRANCH"
-          fi
+          # Publish the tag while the tested source is still the remote branch tip.
+          # Advancing main first can make GITHUB_TOKEN reject tagging the older commit.
           if [ "$OPERATION" = deploy ]; then
             TAG="deploy-$(date -u +%Y%m%dT%H%M%SZ)-${SOURCE_SHA:0:12}"
             git tag -a "$TAG" "$SOURCE_SHA" -m "Verified AWS laboratory deployment of $SOURCE_SHA"
             git push origin "refs/tags/$TAG"
+          fi
+          git add README.md
+          if ! git diff --cached --quiet; then
+            git commit -m 'docs: update laboratory deployment status [skip ci]'
+            git push origin "HEAD:$DEFAULT_BRANCH"
           fi
