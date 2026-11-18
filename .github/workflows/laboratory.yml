@@ -1,0 +1,133 @@
+name: AWS laboratory
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        type: choice
+        options: [deploy, start, stop, destroy]
+        default: deploy
+        description: Ephemeral laboratory operation
+      architecture:
+        type: choice
+        options: [arm64, amd64]
+        default: arm64
+        description: Must match the existing lab when reusing infrastructure
+concurrency:
+  group: cahuita-aws-laboratory
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  ci:
+    if: inputs.operation == 'deploy' && github.ref_name == github.event.repository.default_branch
+    uses: ./.github/workflows/ci.yml
+
+  operate:
+    needs: ci
+    if: >-
+      always() && github.ref_name == github.event.repository.default_branch &&
+      (needs.ci.result == 'success' || inputs.operation != 'deploy')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: laboratory
+      url: ${{ steps.result.outputs.url }}
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      TF_VAR_region: ${{ vars.AWS_REGION || 'us-east-1' }}
+      TF_VAR_architecture: ${{ inputs.architecture }}
+      TF_VAR_allowed_account_id: ${{ secrets.AWS_ACCOUNT_ID }}
+      CAHUITA_TF_STATE_BUCKET: ${{ secrets.AWS_TF_STATE_BUCKET }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: '1.15.5'
+          terraform_wrapper: false
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          allowed-account-ids: ${{ secrets.AWS_ACCOUNT_ID }}
+          mask-aws-account-id: true
+      - name: Download the image tested in this same workflow
+        if: inputs.operation == 'deploy'
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: image-${{ inputs.architecture }}
+          path: artifacts/image
+      - name: Verify the transferred artifact and deploy
+        if: inputs.operation == 'deploy'
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          sha256sum --check artifacts/image/image.sha256
+          python3 scripts/aws_lab.py up --image-archive artifacts/image/image.tar --image-tag "cahuita-conditions:ci-$SOURCE_SHA" --source-sha "$SOURCE_SHA"
+      - name: Start, stop or destroy the existing lab
+        if: inputs.operation != 'deploy'
+        env:
+          OPERATION: ${{ inputs.operation }}
+        run: python3 scripts/aws_lab.py "$OPERATION"
+      - name: Export sanitized deployment evidence
+        id: result
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads(Path('artifacts/aws/deployment.json').read_text())
+          if not report.get('verified'):
+              raise SystemExit('Cannot publish an unverified operation')
+          if report.get('local_changes'):
+              raise SystemExit('Cannot publish a release from uncommitted source changes')
+          if report['status'] == 'running':
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+                  output.write('url=http://' + report['public_ip'] + '\n')
+          PY
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: deployment-evidence
+          path: artifacts/aws/deployment.json
+          retention-days: 7
+
+  publish:
+    needs: operate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: deployment-evidence
+          path: artifacts/published
+      - name: Update the README and tag the actual deployed source
+        env:
+          REPOSITORY: ${{ github.repository }}
+          SOURCE_SHA: ${{ github.sha }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          OPERATION: ${{ inputs.operation }}
+        run: |
+          set -eu
+          git fetch origin "$DEFAULT_BRANCH"
+          if [ "$(git rev-parse "origin/$DEFAULT_BRANCH")" != "$SOURCE_SHA" ]; then
+            echo 'The default branch advanced; leaving README untouched to avoid overwriting newer work.'
+            exit 1
+          fi
+          python3 scripts/publish_deployment.py --report artifacts/published/deployment.json --repository "$REPOSITORY"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add README.md
+          if ! git diff --cached --quiet; then
+            git commit -m 'docs: update laboratory deployment status [skip ci]'
+            git push origin "HEAD:$DEFAULT_BRANCH"
+          fi
+          if [ "$OPERATION" = deploy ]; then
+            TAG="deploy-$(date -u +%Y%m%dT%H%M%SZ)-${SOURCE_SHA:0:12}"
+            git tag -a "$TAG" "$SOURCE_SHA" -m "Verified AWS laboratory deployment of $SOURCE_SHA"
+            git push origin "refs/tags/$TAG"
+          fi
